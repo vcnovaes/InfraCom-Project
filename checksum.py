@@ -60,7 +60,7 @@ from RFC 1071
 
 """
 
-def checksum(count, data):
+def Checksum(count, data, flag = True):
     """
     computes the checksum with an inner loop
     that sums 16-bits at a time in a 32-bit accumulator
@@ -85,9 +85,10 @@ def checksum(count, data):
     # fold 32-bit Sum to 16 bits
     while (Sum>>16):
         Sum = (Sum & 0xffff) + (Sum >> 16)
-
-    checksum = ~Sum
+    if flag== False:
+        checksum = ~Sum
     return checksum
 
-print(checksum(4,b"1535"))
-print(checksum(4,b"1525"))
+print(Checksum(4,b"1535"))
+print(Checksum(4,b"1525"))
+print(b"1535")
