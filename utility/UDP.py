@@ -1,56 +1,60 @@
-from logging import exception
 import socket
 from cgi import print_exception
 import socket as skt
-import utility.checksum as cks
-from utility.checksum import verify_checksum 
+from utility import checksum
+from utility.checksum import verify_checksum
+import json
 
-class UDPProtocol:
-    def __init__(self, ip, port, is_server=False, timeout=1) -> None:
-        self.socket = skt.socket(skt.AF_INET, skt.SOCK_DGRAM)
-        self.server_info = {"ip": ip, "port" : port}
-        self.timeout = 1 
-        self.seqnum = 0 
-        if is_server:
-            self.socket.bind(tuple(self.server_info.values()))
-        pass
+
+def make_pkt(data: str, additional_pkt_parts):
+    checker = checksum.calculate_checksum(data.encode())
+    pkt_dict = {
+        "data": data,
+        "checksum": checker,
+    }
+    if additional_pkt_parts is not None:
+        for part in additional_pkt_parts:
+            pkt_dict[part["name"]] = part["value"]
     
-    def make_pkt(self, data, seqnum):
-        checker = cks.calculate_checksum(data)
-        pkt = {
-            "checksum" : checker, 
-            "sequence" : seqnum, 
-            "data" : data
-        }
-        return pkt 
+    encoded_pkt = json.dumps(pkt_dict, indent=2).encode('utf-8')
+    return encoded_pkt
 
-class udp_connetion:
-    def __init__(self, type, port):
+
+class UDPConnetion:
+    def __init__(self, type, adress, port, timeout=None):
         '''
             type: "client" ou "server"
         '''
 
         if(type == "server"):
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.socket.bind(("localhost", port))
+            self.socket.bind((adress, port))
             print(f"UDP Server is listening on port {port}")
+            self.socket.settimeout(timeout)
 
         elif(type == "client"):
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.socket.bind((adress, port))
+            self.socket.settimeout(timeout)
 
         else:
             raise Exception(
                 f"{type} is not a valid type. Must be either 'client' or 'server'.")
 
-    def recieve(self):
-        data, adress = self.socket.recvfrom(2048)
-        return (data, adress)
+    def receive(self):
+        pkt, adress = self.socket.recvfrom(2048)
+        return (pkt, adress)
 
-    def send(self, data, reciever_ip):
+    def send(self, data:str, receiver_address, receiver_port, additional_pkt_parts = None):
         '''
-            data must be in bytes (encoded)
+            data must be a string
+
+            additional_pkt_parts: [{"name": "sequence_number", "value": sequence_number}, {...}, ...]
         '''
-        self.socket.sendto(data, ("localhost", reciever_ip))
+
+        pkt_to_send = make_pkt(data, additional_pkt_parts)
+        self.socket.sendto(pkt_to_send, (receiver_address, receiver_port))
+
         if(type == "client"):
             print(
                 f"Client: {data.decode()} ({data})")
@@ -61,51 +65,3 @@ class udp_connetion:
     def close(self):
         self.socket.close()
         print("Client closed")
-    def send_data(self, data, address=None):
-        if address is None:
-            address = tuple(self.server_info.values())
-        return self.socket.sendto(data['data'], address)
-
-    def rdt_send(self, data, address=None):
-        address = tuple(self.server_info.values()) if address is None else address
-        self.socket.settimeout(self.timeout)
-        pkt = self.make_pkt(data,self.seqnum)
-        hasAck = False
-
-        while not hasAck:
-            self.send_data(pkt,address)
-            try:
-                msg, address = self.socket.recvfrom(8000)
-            except (skt.timeout, skt.error) as error:
-                print_exception(error)
-            ack = self.rcv_pkt(data)
-        self.socket.settimeout(0)
-
-    def rdt_rcv(self):
-        pkt , address = self.socket.recvfrom(8000)
-        isCorrupt = self.rcv_pkt(pkt, 'Receiver')
-        if not isCorrupt:
-            self.send(self.make_pkt(b'ACK',self.seqnum), address)
-            self.seqnum  += 1 
-        else:
-            self.send(self.make_pkt(b'ACK', self.seqnum - 1)) 
-        return pkt, address 
-    
-    def close(self):
-        print("Closing connection")
-        self.socket.close() 
-    
-    def rcv_pkt(self, data, isSender=True):
-        pkt = eval(data.decode())
-        
-        if verify_checksum(data=data, checksum=pkt["checksum"]):
-            print("Checksum ERROR")
-            return False 
-        if isSender and self.seqnum != pkt['sequence']:
-            print("Sequence Number ERROR")
-            return False 
-        if isSender: 
-            self.seqnum += 1 
-        return True 
-
-    

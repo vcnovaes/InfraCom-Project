@@ -63,7 +63,6 @@ from comm import send, recv, CLIENT_PORT, SERVER_PORT, IP
 z = 42
 
 while True:
-    time.sleep(1)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     send(sock, [z & 0xFF, 1, 2, 3, 4, 5], IP, SERVER_PORT)
     sock.close()

@@ -1,89 +1,100 @@
-from torch import reciprocal
-from UDP import udp_connetion
+import socket as socket
+import utility.UDP as UDP
+from utility.checksum import verify_checksum
+import ast, time
 
 
-class RDT:
-    def __init__(self, type, port):
+
+def make_ack_pkt(sequence_number):
+    return UDP.make_pkt(data="ACK", additional_pkt_parts= [{"name":"sequence_number", "value":sequence_number}])
+
+def next_sequence_number(sequence_number):
+    return 1 - sequence_number
+    
+def is_ACK_correct(pkt, expected_seq) -> bool:
+    pkt = ast.literal_eval(pkt.decode())
+    return (pkt["data"] == "ACK") and (pkt["sequence_number"] == expected_seq)
+
+
+class RDTConnection:
+    def __init__(self, type, address, port, buffer_size=2048, timeout=10) -> None:
         '''
-            type: "client" ou "server"
+            type: "server" ou "client"
         '''
-        self.udp_connection = udp_connetion(type=type, port=port)
-        self.sequence_number = 0
-        self.data_buffer = None
-import socket as skt
-from time import time
 
-class Server:
-    def __init__(self, address, port, buffer_size, timeout) -> None:
+        # config
         self.timeout = timeout
         self.sender_adress = address
         self.buffer_size = buffer_size
-        #socket configurations
-        self.UDP_socket = skt.socket(family=skt.AF_INET, type=skt.SOCK_DGRAM)
-        self.UDP_socket.bind((address,port))
-        self.UDP_socket.settimeout(timeout)
-        print("Starting server")
-        self.run() 
-    
-    def run(self):
-        while(True):
-            msg, sender_adress = self.receive_data() 
+        self.udp_connection = UDP.UDPConnetion(type, address, port)
+        self.sequence_number = 0
 
 
-    def receive_data(self):
-        print("Receiving data")
-        msg, sender_address = self.UDP_socket.recvfrom(self.buffer_size)
-        return self.rcv_pkt(data, sender_address), sender_address
+    def is_corrupt(self, received_pkt):
+        # received_pkt is a dict turned into a string, encoded into bytes. So we do the reverse here:
+        received_pkt_decoded = ast.literal_eval(received_pkt.decode())
+        received_checksum = received_pkt_decoded["checksum"]
 
-    
-    def rcv_pkt(self,data, sender_adress):
-        data = data.decode() 
-        sequence_num = data
+        received_data = received_pkt_decoded["data"]
+        encoded_data = received_data.encode()
+        return not verify_checksum(received_data.encode(), received_checksum) 
+        
 
-    def make_pkt(self, data, checksum, sequence_number):
-        return {"data": data,  "checksum": checksum,  "sequence_number": sequence_number}
+    def is_sequence_number_ok(self, received_pkt):
+        # received_pkt is a dict turned into a string, encoded into bytes. So we do the reverse here:
+        received_pkt_decoded = ast.literal_eval(received_pkt.decode())
+        received_sequence_number = received_pkt_decoded["sequence_number"]
+        return received_sequence_number == self.sequence_number
 
-    def make_ack(self, ack, checksum):
-        return {"ack": ack, "checksum": checksum}
+    def receive(self, sender_address, sender_port):
+        #   variable for listening for incoming data
+        received_pkt = None
+        ### loops until receives data ###
+        while received_pkt == None:
+            (received_pkt, address) = self.udp_connection.receive()
 
-    def is_corrupt(self, ):
-        pass
+            ### checks if data is corruped && if sequence ###
+            if not self.is_corrupt(received_pkt) and self.is_sequence_number_ok(received_pkt):
+                ### if everything is ok, sends an ACK ###
+                self.udp_connection.send(data="ACK", receiver_address=sender_address, receiver_port=sender_port, additional_pkt_parts=[{"name":"sequence_number", "value":self.sequence_number}])
 
-    def recieve(self, ):
-        pass
+                ### flips sequence number ###
+                self.sequence_number = next_sequence_number(self.sequence_number)
 
-    def send(self, msg_string):
-        # creates the pkt
-        pkt_to_send = self.make_pkt(self.seq_num, msg_string)
+            else:
+                ### if data is corrupted or sequence number is incorrect, sends an ACK ###
+                self.udp_connection.send(data="ACK", receiver_address=sender_address, receiver_port=sender_port, additional_pkt_parts=[{"name":"sequence_number", "value":next_sequence_number(self.sequence_number)}])
 
-        # increments the sequence number
-        self.seq_num += 1
+        pkt_decoded = ast.literal_eval(received_pkt.decode())
+        data_decoded = pkt_decoded["data"] 
+        sequence_number_decoded = pkt_decoded["sequence_number"] 
+        if data_decoded != "ACK": 
+            print(f"Received message: {data_decoded}")
+            # print(f"sequence_number: {self.sequence_number}")
+            # print(f"sequence_number_received: {sequence_number_decoded}")
+        return (received_pkt, address)
 
-        while True:
-            ### sends the packet ###
-            self.udp_connection.send(pkt_to_send.encode())
+    def send(self, data, receiver_address, receiver_port) -> None:
+        '''
+            data must be in bytes
+        '''
 
-            # clears the data buffer
-            self.data_buffer = None
-
-            # variable for listening for incoming data
-            recieved_pkt = None
-
-            ### loops until recieves data ###
-            while recieved_pkt == None:
-                recieved_pkt = self.udp_connection.recieve().decode()
-
-            # sets byte_buffer to received data
-            self.data_buffer = recieved_pkt
-
-            ### checks for corruption ###
-            # if data is not corrupted, check sequence numbers
-            if(not self.is_corrupt(recieved_pkt)):
-
-                ### check sequence numbers ###
-                # check to make sure the response sequence number isn't behind
-                if recieved_pkt["sequence_number"] < self.sequence_number:
-                    # creates ack pkt
-                    ack = self.make_ack(1,)
-class RDTClient: 
-    pass 
+        self.udp_connection.send(data, receiver_address, receiver_port, additional_pkt_parts=[{"name":"sequence_number", "value": self.sequence_number}])
+        ### waits for correct, non-corrupted ACK while re-sending the pakt_to_send at every timeout ###
+        received_pkt = None
+        try:
+            # @TODO: fix this later
+            self.udp_connection.socket.settimeout(None)
+            (received_pkt, _) = self.receive(receiver_address, receiver_port )
+            while not is_ACK_correct(received_pkt, self.sequence_number):
+                (received_pkt, _) = self.receive(receiver_address, receiver_port )
+        except socket.timeout as e:
+             # Try again
+             print(f'Socket timed out {e}')
+             self.send(data, receiver_address, receiver_port)
+             
+        self.sequence_number = next_sequence_number(self.sequence_number)
+        
+    def close(self):
+        self.udp_connection.close()
+        print(f"{type} closed.")
