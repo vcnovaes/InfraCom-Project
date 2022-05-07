@@ -1,6 +1,6 @@
 import socket
 import time
-import checksum
+import utility.checksum as checksum
 import rdt3_sender
 import rdt3_receiver
 import datetime
@@ -8,10 +8,7 @@ import datetime
 from comm import send, recv, CLIENT_PORT, SERVER_PORT, IP
 
 
-
-
-
-#def send_pkt(pkt):
+# def send_pkt(pkt):
 #    max_time = 10
 #
 #    # acting as SENDER
@@ -21,21 +18,21 @@ from comm import send, recv, CLIENT_PORT, SERVER_PORT, IP
 #        clientSocket.sendto(pkt.encode(), (serverName, serverPort))
 #        start_time = datetime.datetime.now()
 #
-#        # enquanto o timer não estourar, checa se recebeu o ack. 
+#        # enquanto o timer não estourar, checa se recebeu o ack.
 #        # se receber a mensagem, sai do while e vai para o while de cima (onde ele envia o pkt de novo)
 #        while(datetime.datetime.now() - start_time < max_time and recieved_correct_ack == False ):
 #            recieved_pkt, serverAddress = clientSocket.recvfrom(2048)
-#            # checa se recebeu um ack e seta o valor da variável recieved_ack 
+#            # checa se recebeu um ack e seta o valor da variável recieved_ack
 #
-#            # se recebeu ack da sequencia certa e o checksum calculado no reciever foi True, set recieved_correct_ack to True, o que vai fazer sair dos dois whiles. 
+#            # se recebeu ack da sequencia certa e o checksum calculado no reciever foi True, set recieved_correct_ack to True, o que vai fazer sair dos dois whiles.
 #            if( rdt3_sender.isAck(recieved_pkt, seq) and recieved_pkt["is_checksum_valid"] == True ):
 #                recieved_correct_ack = True
 #                seq = (seq + 1)%2
 #
 #
-#def recieve_pkt():
-#    
-#    # while not recieved correct pkt, continua a tentar receber pkt e envia seq errado. Se recebeu correct pkt, envia ACK correto e sai do while. 
+# def recieve_pkt():
+#
+#    # while not recieved correct pkt, continua a tentar receber pkt e envia seq errado. Se recebeu correct pkt, envia ACK correto e sai do while.
 #    recieved_corret_pkt = False
 #    recieved_pkt = None
 #    while(recieved_corret_pkt == False):
@@ -43,7 +40,7 @@ from comm import send, recv, CLIENT_PORT, SERVER_PORT, IP
 #
 #        is_checksum_valid = rdt3_receiver.corrupt_data(recieved_pkt["data"],recieved_pkt["checksum"])
 #        is_seq_correct = recieved_pkt["seq"] == seq_receiver
-#        
+#
 #        pkt_do_receiver = None
 #
 #        if(is_checksum_valid and is_seq_correct):
@@ -82,9 +79,9 @@ while True:
 #    checkS = checksum.Checksum(1, message)
 #    pkt = rdt3_sender.make_pkt(message, checkS, seq_sender)
 #    send_pkt(pkt)
-#    
+#
 #    # cliente recebendo uma mensagem do server (string minúscula)
 #    string_que_o_server_modificou = recieve_pkt()["data"]
 #    print(string_que_o_server_modificou.decode())
 #
-#clientSocket.close()
+# clientSocket.close()
