@@ -1,4 +1,4 @@
-from test import assert_eq
+# from test import assert_eq
 
 """
 See RFC 1071
@@ -66,16 +66,16 @@ def split_int16(x):
 
     return (top, bottom)
 
-textbook_example_payload = bytearray([0b01100110, 0b01100000, 0b01010101, 0b01010101, 0b10001111, 0b00001100])
-textbook_example_checksum = 0b1011010100111101
+# textbook_example_payload = bytearray([0b01100110, 0b01100000, 0b01010101, 0b01010101, 0b10001111, 0b00001100])
+# textbook_example_checksum = 0b1011010100111101
 
-checksum = calculate_checksum(textbook_example_payload)
-assert_eq(bin(checksum), bin(textbook_example_checksum))
+# checksum = calculate_checksum(textbook_example_payload)
+# assert_eq(bin(checksum), bin(textbook_example_checksum))
 
-checksum_passed = verify_checksum(textbook_example_payload, checksum)
-assert_eq(checksum_passed, True)
+# checksum_passed = verify_checksum(textbook_example_payload, checksum)
+# assert_eq(checksum_passed, True)
 
-data = textbook_example_payload
-(n_data, n_chksum) = extract_checksum(append_checksum(data))
-assert_eq(data, n_data)
-assert_eq(checksum, n_chksum)
+# data = textbook_example_payload
+# (n_data, n_chksum) = extract_checksum(append_checksum(data))
+# assert_eq(data, n_data)
+# assert_eq(checksum, n_chksum)
