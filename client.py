@@ -1,20 +1,28 @@
 from utility.RDT3 import RDTConnection
-import os
+import os, ast
 
 port = 3000
+def prepare_msg(msg):
+    if len(msg) % 2 == 1:
+        msg += '\0'
+    return msg    
+
 
 def main():
     os.system(f"kill -9 $(lsof -t -i:{port})")
     os.system("clear")
-
-
     client_connection = RDTConnection("client", "0.0.0.0", port)
     try: 
         while True: 
-            msg = input("Message to send:")
-            if len(msg) % 2 == 1:
-                msg += '\0'
-            client_connection.send(msg,"0.0.0.0", 3001)
+            msg = input()
+            # msg = input()
+            msg = prepare_msg(msg)
+            client_connection.send(msg,"0.0.0.0", 1200)
+            data, _ = client_connection.receive()
+            data = ast.literal_eval(data.decode())
+            print(data["data"])
+            # print(f"[FROM client.py] {data}")
+
             
     except KeyboardInterrupt:
         client_connection.close()        

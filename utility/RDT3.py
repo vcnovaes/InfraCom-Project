@@ -13,7 +13,8 @@ def next_sequence_number(sequence_number):
     
 def is_ACK_correct(pkt, expected_seq) -> bool:
     pkt = ast.literal_eval(pkt.decode())
-    return (pkt["data"] == "ACK") and (pkt["sequence_number"] == expected_seq)
+    ret = (pkt["data"] == "ACK") and (pkt["sequence_number"] == expected_seq)
+    # print(f'ACK is {ret}')
 
 
 class RDTConnection:
@@ -46,53 +47,58 @@ class RDTConnection:
         received_sequence_number = received_pkt_decoded["sequence_number"]
         return received_sequence_number == self.sequence_number
 
-    def receive(self, sender_address, sender_port):
+    def receive(self):
         #   variable for listening for incoming data
         received_pkt = None
-        ### loops until receives data ###
-        while received_pkt == None:
-            (received_pkt, address) = self.udp_connection.receive()
 
-            ### checks if data is corruped && if sequence ###
-            if not self.is_corrupt(received_pkt) and self.is_sequence_number_ok(received_pkt):
-                ### if everything is ok, sends an ACK ###
-                self.udp_connection.send(data="ACK", receiver_address=sender_address, receiver_port=sender_port, additional_pkt_parts=[{"name":"sequence_number", "value":self.sequence_number}])
+        ### waits for data to be received ###
+        # print("Started waiting to receive...")
+        (received_pkt, (sender_address, sender_port)) = self.udp_connection.receive()
 
-                ### flips sequence number ###
-                self.sequence_number = next_sequence_number(self.sequence_number)
+        ### checks if data is corruped && if sequence ###
+        if not self.is_corrupt(received_pkt) and self.is_sequence_number_ok(received_pkt):
+            ### if everything is ok, sends an ACK ###
+            self.udp_connection.send(data="ACK", receiver_address=sender_address, receiver_port=sender_port, additional_pkt_parts=[{"name":"sequence_number", "value":self.sequence_number}])
 
-            else:
-                ### if data is corrupted or sequence number is incorrect, sends an ACK ###
-                self.udp_connection.send(data="ACK", receiver_address=sender_address, receiver_port=sender_port, additional_pkt_parts=[{"name":"sequence_number", "value":next_sequence_number(self.sequence_number)}])
+            ### flips sequence number ###
+            self.sequence_number = next_sequence_number(self.sequence_number)
+
+        else:
+            ### if data is corrupted or sequence number is incorrect, sends an ACK ###
+            self.udp_connection.send(data="ACK", receiver_address=sender_address, receiver_port=sender_port, additional_pkt_parts=[{"name":"sequence_number", "value":next_sequence_number(self.sequence_number)}])
 
         pkt_decoded = ast.literal_eval(received_pkt.decode())
         data_decoded = pkt_decoded["data"] 
         sequence_number_decoded = pkt_decoded["sequence_number"] 
-        if data_decoded != "ACK": 
-            print(f"Received message: {data_decoded}")
-            # print(f"sequence_number: {self.sequence_number}")
-            # print(f"sequence_number_received: {sequence_number_decoded}")
-        return (received_pkt, address)
+        # if data_decoded != "ACK": 
+        # print(f"Received message: {data_decoded}")
+        return (received_pkt, (sender_address, sender_port))
 
-    def send(self, data, receiver_address, receiver_port) -> None:
+    def send(self, data: str, receiver_address, receiver_port) -> None:
         '''
-            data must be in bytes
+            data must be in string
         '''
 
         self.udp_connection.send(data, receiver_address, receiver_port, additional_pkt_parts=[{"name":"sequence_number", "value": self.sequence_number}])
         ### waits for correct, non-corrupted ACK while re-sending the pakt_to_send at every timeout ###
         received_pkt = None
-        try:
-            # @TODO: fix this later
-            self.udp_connection.socket.settimeout(None)
-            (received_pkt, _) = self.receive(receiver_address, receiver_port )
-            while not is_ACK_correct(received_pkt, self.sequence_number):
-                (received_pkt, _) = self.receive(receiver_address, receiver_port )
-        except socket.timeout as e:
-             # Try again
-             print(f'Socket timed out {e}')
-             self.send(data, receiver_address, receiver_port)
-             
+        #try:
+        # @TODO: fix this later
+        self.udp_connection.socket.settimeout(None)
+        # Espera ACK #
+        # fonte do ACK ao enviar
+        # (received_pkt, _) = self.receive()
+        (received_pkt, _) = self.udp_connection.receive()
+        # print(f"[FROM RDT3.py send()] receiving ACKs {received_pkt}")
+        #while not is_ACK_correct(received_pkt, self.sequence_number):
+        #    (received_pkt, _) = self.udp_connection.receive()
+        #    print(f"Receiving pkt {received_pkt}")
+        # print("PASSOU IHAAAAAAAAAAAA")
+    #except socket.timeout as e:
+        #     # Try again
+        #     print(f'Socket timed out {e}')
+        #     self.send(data, receiver_address, receiver_port)
+        #     
         self.sequence_number = next_sequence_number(self.sequence_number)
         
     def close(self):

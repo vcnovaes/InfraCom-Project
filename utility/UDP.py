@@ -1,9 +1,6 @@
-import socket
-from cgi import print_exception
-import socket as skt
+import socket, time
 from utility import checksum
-from utility.checksum import verify_checksum
-import json
+import json, unidecode
 
 
 def make_pkt(data: str, additional_pkt_parts):
@@ -51,6 +48,15 @@ class UDPConnetion:
 
             additional_pkt_parts: [{"name": "sequence_number", "value": sequence_number}, {...}, ...]
         '''
+
+        # print(f"\n dentro do udp send ====> {data} <==== \n")
+        # print(".....")
+        # time.sleep(4)
+        # print("__...")
+        # time.sleep(4)
+        # print("_____")
+
+        data = unidecode.unidecode(data)
 
         pkt_to_send = make_pkt(data, additional_pkt_parts)
         self.socket.sendto(pkt_to_send, (receiver_address, receiver_port))

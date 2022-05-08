@@ -9,7 +9,7 @@ def main():
 
     server_connection = RDTConnection("server", "0.0.0.0", port)
     while True:
-        pkt, client_addr = server_connection.receive("0.0.0.0", 3000)
+        pkt, client_addr = server_connection.receive()
 
 
 
