@@ -1,4 +1,5 @@
 import ast, os, datetime
+from kennedy_client import enviar
 from utility.RDT3 import RDTConnection
 
 def timestamp():
@@ -226,8 +227,18 @@ class Server:
 
     def levantar_da_mesa(self, clientAddress):
          
-        self.tabela[clientAddress]["state"]
-        self.tabela.pop(clientAddress)
+        #self.tabela[clientAddress]["state"]
+        
+        if self.tabela[clientAddress]["conta"] > 0:
+            msg = "Você ainda não pagou sua conta de " + self.tabela[clientAddress]["conta"] + " reais!\n"
+            self.enviar(msg)
+            return 0
+        else:
+            self.tabela.pop(clientAddress)
+            msg = "Agradecemos a sua visita\n"
+            self.enviar(msg)
+            return 10        
+        
 
     def main_loop(self):
         skip_receive = False
