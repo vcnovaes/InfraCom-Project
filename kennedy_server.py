@@ -46,6 +46,7 @@ class Server:
 
         self.state=0
         self.tabela = {}
+        self.tabelaMesa = [[] for i in range(15)]
         self.current_user = None
 
         self.last_received = None
@@ -125,7 +126,7 @@ class Server:
 
         self.tabela[self.current_user]["nome"] = nome
         self.tabela[self.current_user]["mesa"] = int(mesa)
-
+        self.tabelaMesa[int(mesa)].append(self.current_user)
         return self.mandarOpcoes
 
     def mandarOpcoes(self, state):
@@ -215,15 +216,25 @@ class Server:
         return self.tabela[user]["state"]
 
     def conta_da_mesa(self, clientAddress, state):
-        #state
+        #states
         mesa = self.tabela[clientAddress]["mesa"]
-        format_pedidos = lambda item: (str(*item.key()) + "=> " + " R$ "+ str(*(item.values())))
-
-        conta = [
-            '|' + str(row["nome"]) +'|' + format_pedidos(row["pedidos"]) 
-            for row in self.tabela if row["mesa"] == mesa
-        ]
-        self.enviar(conta)
+        usersMesa = self.tabelaMesa[mesa]
+        msg = ""
+        totalMesa = 0
+        for val in usersMesa:
+            msg+= self.tabela[val]["nome"] + "\n"
+            for comida in self.tabela[val]["pedidos"]:
+                msg += comida + " => R$" + self.prices[comida] + "\n"
+            msg += "\nTotal: R$" + self.tabela[val]["conta"] + "\n"
+            totalMesa += self.tabela[val]["conta"]
+        msg = msg + "O Total da Mesa é: R$" +  totalMesa + "\n\n"
+        #format_pedidos = lambda item: (str(*item.key()) + "=> " + " R$ "+ str(*(item.values())))
+        #
+        #conta = [
+        #    '|' + str(row["nome"]) +'|' + format_pedidos(row["pedidos"]) 
+        #    for row in self.tabela if row["mesa"] == mesa
+        #]
+        self.enviar(msg)
 
     def levantar_da_mesa(self, clientAddress):
          
@@ -234,6 +245,7 @@ class Server:
             self.enviar(msg)
             return 0
         else:
+            self.tabelaMesa[self.tabela[clientAddress]["mesa"]].remove(clientAddress)
             self.tabela.pop(clientAddress)
             msg = "Agradecemos a sua visita\n"
             self.enviar(msg)
