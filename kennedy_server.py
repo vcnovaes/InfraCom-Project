@@ -1,6 +1,6 @@
 import ast, os, datetime
-from kennedy_client import enviar
 from utility.RDT3 import RDTConnection
+import math
 
 def timestamp():
     now = datetime.datetime.now()
@@ -14,23 +14,25 @@ class Server:
     def __init__(self):
 
         self.cardapio = [
-            {"num": 1, "nome":"File a Parmegiana".lower(), "preco": 13.00 },
-            {"num": 2, "nome": "Frango a Parmegiana".lower(), "preco" : 14.00}, 
-            {"num": 3, "nome": "Macarrão com alho".lower(), "preco": 42.00}
+            {"num": 1, "nome":"File a Parmegiana".lower(), "preco": 10.00 },
+            {"num": 2, "nome": "Frango a Parmegiana".lower(), "preco" : 20.00}, 
+            {"num": 3, "nome": "Macarrão com alho".lower(), "preco": 40.00}
         ]
         self.prices = {
-            "File a Parmegiana".lower() : 13.00,
-            "Frango a Parmegiana".lower() : 14.00,
-            "Macarrão com alho".lower() : 42.00
+            "File a Parmegiana".lower() : 10.00,
+            "Frango a Parmegiana".lower() : 20.00,
+            "Macarrão com alho".lower() : 40.00
         }
         self.user_options =  '''
             Digite uma das opções a seguir (o número ou por extenso):
             1 - cardápio
             2 - pedido
             3 - conta individual 
-            4 - não fecho com robô, chame seu gerente
+            4 - levantar da mesa 
             5 - nada não, tava só testando
-            6 - conta da mesa
+            6 - não fecho com robô, chame seu gerente
+            7 - conta da mesa
+            8 - Pagar Conta
             '''
 
         self.cnt = 0
@@ -46,7 +48,6 @@ class Server:
 
         self.state=0
         self.tabela = {}
-        self.tabelaMesa = [[] for i in range(15)]
         self.current_user = None
 
         self.last_received = None
@@ -126,7 +127,6 @@ class Server:
 
         self.tabela[self.current_user]["nome"] = nome
         self.tabela[self.current_user]["mesa"] = int(mesa)
-        self.tabelaMesa[int(mesa)].append(self.current_user)
         return self.mandarOpcoes
 
     def mandarOpcoes(self, state):
@@ -138,7 +138,12 @@ class Server:
         opts = [
             self.ler_cardapio,
             self.pedido,
-            self.conta_individual
+            self.conta_individual,
+            self.levantar_da_mesa,
+            self.teste,
+            self.gerente,
+            self.conta_da_mesa,
+            self.pagarConta
         ]
         
         opt = int(msg) if msg.isnumeric() else self.pedido_em_extenso_to_int(msg) 
@@ -176,9 +181,9 @@ class Server:
         return self.mandarOpcoes
 
     def teste(self, state):
-        msg = "Obrig116Gado por testar!"
+        msg = "Obrigado por testar!"
         self.enviar(msg)
-        return 0
+        return self.mandarOpcoes
 
     def conta_individual(self, state):
         pedidos = [ (nome,self.prices[nome]) for nome in self.tabela[self.current_user]["pedidos"] ] 
@@ -194,7 +199,7 @@ class Server:
     def gerente(self, state):
         msg = "Irei chamar o Gerente"
         self.enviar(msg)
-        return 0
+        return self.mandarOpcoes
 
     def update_user_state(self, user, state):
         if not (user in self.tabela):
@@ -215,42 +220,72 @@ class Server:
 
         return self.tabela[user]["state"]
 
-    def conta_da_mesa(self, clientAddress, state):
-        #states
-        mesa = self.tabela[clientAddress]["mesa"]
-        usersMesa = self.tabelaMesa[mesa]
+    
+    def conta_da_mesa(self, state): # pronto
+        mesa = self.tabela[self.current_user]["mesa"]
         msg = ""
         totalMesa = 0
-        for val in usersMesa:
-            msg+= self.tabela[val]["nome"] + "\n"
-            for comida in self.tabela[val]["pedidos"]:
-                msg += comida + " => R$" + self.prices[comida] + "\n"
-            msg += "\nTotal: R$" + self.tabela[val]["conta"] + "\n"
-            totalMesa += self.tabela[val]["conta"]
-        msg = msg + "O Total da Mesa é: R$" +  totalMesa + "\n\n"
-        #format_pedidos = lambda item: (str(*item.key()) + "=> " + " R$ "+ str(*(item.values())))
-        #
-        #conta = [
-        #    '|' + str(row["nome"]) +'|' + format_pedidos(row["pedidos"]) 
-        #    for row in self.tabela if row["mesa"] == mesa
-        #]
+        for val in self.tabela.values():
+            if val["mesa"] == mesa:
+                msg += val["nome"] + "\n"
+                for comida in val["pedidos"]:
+                    msg += comida + " => R$" + str(self.prices[comida]) + "\n"    
+                msg += "\nTotal: R$" + str(val["conta"]) + "\n"
+                totalMesa+= val["conta"]
+            
+        msg += "O Total da Mesa é: R$" +  str(totalMesa) + "\n\n"
         self.enviar(msg)
-
-    def levantar_da_mesa(self, clientAddress):
-         
+        return self.pre_chefia
+    
+    def levantar_da_mesa(self, state): #pronto
         #self.tabela[clientAddress]["state"]
-        
-        if self.tabela[clientAddress]["conta"] > 0:
-            msg = "Você ainda não pagou sua conta de " + self.tabela[clientAddress]["conta"] + " reais!\n"
+        print(f"{self.current_user} esta tentando levantar da mesa")
+        if self.tabela[self.current_user]["conta"] > 0:
+            msg = "Você ainda não pagou sua conta de " + str(self.tabela[self.current_user]["conta"]) + " reais!\n"
             self.enviar(msg)
-            return 0
+            return self.pre_chefia
         else:
-            self.tabelaMesa[self.tabela[clientAddress]["mesa"]].remove(clientAddress)
-            self.tabela.pop(clientAddress)
+            self.tabela.pop(self.current_user)
             msg = "Agradecemos a sua visita\n"
             self.enviar(msg)
-            return 10        
-        
+            return self.pre_chefia
+    def valorContaMesa(self, mesa):
+        total =0
+        cnt =0;
+        for user in self.tabela.values():
+            if user["mesa"] == mesa:
+                total += user["conta"]
+                cnt+=1
+        return total, cnt
+    
+    def pagarConta(self, state):
+        '''
+         1 - Printar conta individual e conta da  mesa
+        '''
+        mesa = self.tabela[self.current_user]["mesa"]
+        contaMesa, qtdMesa = self.valorContaMesa(mesa)
+        contaIndividual = self.tabela[self.current_user]["conta"]
+
+        msg = "Sua Conta foi de R$ " + str(contaIndividual) + " e a da mesa R$ " + str(contaMesa) + ". Digite o valor a ser pago:\n"
+        while True:
+            self.enviar(msg)
+            dinheiro = int(self.receber())
+            if dinheiro >= contaIndividual and dinheiro <= contaMesa:
+                self.tabela[self.current_user]["conta"]=0
+                self.tabela[self.current_user]["pedidos"] = []
+                restante = dinheiro - contaIndividual
+                # contar qtd de pessoas na mesma mesa 
+                # divide igualmente , resultado faz floor
+                if restante > 0:
+                    divisao = math.floor(restante/(qtdMesa-1))
+                    for user in self.tabela.values():
+                        if user["mesa"] == mesa and user["conta"] > 0:
+                            user["conta"] -= divisao
+                            if user["conta"] < 0: 
+                                user["conta"] = 0 
+                break    
+        return self.mandarOpcoes
+                
 
     def main_loop(self):
         skip_receive = False
