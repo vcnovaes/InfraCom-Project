@@ -1,2 +1,6 @@
-# TODO
-- colocar na pasta old as versões antigas de checksum, corrupt, etc... para ficar registrado como que cada um desses códigos foi entregue dentro da deadline. Deixar claro, na entrega/apresentação que tudo que está fora de old foi reescrito e retrabalhado para ficar melhor.
+# Infracom Project
+Para rodar:
+- rodar o server.py no diretório raiz
+- rodar o client.py no diretório raiz
+### ATENÇÃO
+- É necessário que o cliente escolha uma opção antes de rodar outro client.
