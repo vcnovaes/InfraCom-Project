@@ -1,8 +1,9 @@
-from checksum import *
+from utility.checksum import *
 import datetime
 
-def make_pkt(data, checkS, seq): 
-    return {"data": data,  "checksum" : checkS,  "sequence" : seq}
+
+def make_pkt(data, checkS, seq):
+    return {"data": data,  "checksum": checkS,  "sequence": seq}
 
 
 def isAck(rcvpkt, seq):

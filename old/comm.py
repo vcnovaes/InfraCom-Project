@@ -1,8 +1,9 @@
-from checksum import append_checksum, extract_checksum, verify_checksum
+from utility.checksum import append_checksum, extract_checksum, verify_checksum
 
 IP = '127.0.0.1'
-SERVER_PORT = 5003 
+SERVER_PORT = 5003
 CLIENT_PORT = 1201
+
 
 def send(sock, data, ip, port):
     data = append_checksum(bytearray(data))

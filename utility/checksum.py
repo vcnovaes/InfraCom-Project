@@ -1,11 +1,16 @@
-from test import assert_eq
+# from test import assert_eq
 
 """
 See RFC 1071
 
 """
 
+def assert_eq(a, b):
+    assert a == b
+
 def calculate_checksum(data):
+    # data is a string encoded into bytes
+
     """
     computes the checksum with an inner loop
     that sums 16-bits at a time in a 32-bit accumulator
@@ -16,7 +21,7 @@ def calculate_checksum(data):
 
     # We add some padding to ensure that we have 8 bit pairs
     if (len(data) % 2) != 0:
-        data = data + bytearray([0])
+        data =  data + bytearray([0])
 
     while (count > 1):
         int16 = ((data[idx] << 8) & 0xFF00) + (data[idx + 1] & 0x00FF)
@@ -31,10 +36,14 @@ def calculate_checksum(data):
     acc = ~acc
     acc = acc & 0xFFFF
 
+
     return acc
 
 def verify_checksum(data, checksum):
+    # data é uma string encoded (bytes)
+
     (a, b) = split_int16(checksum)
+    calculated = calculate_checksum(data)
 
     # We want the sum of all 16 bit pairs with the checksum
     # the checksum sums them all and flips the bits, so we just
@@ -42,7 +51,8 @@ def verify_checksum(data, checksum):
     data = data + bytearray([a, b])
     sum = ~calculate_checksum(data)
 
-    return sum ==  (~0)
+    valid = (sum ==  (~0))
+    return valid
 
 def append_checksum(data):
     chksum = calculate_checksum(data)
@@ -56,7 +66,6 @@ def extract_checksum(data):
     chksum = int.from_bytes(data[-2:], 'big')
     n_data = data[:-2]
 
-    print('cksum {}'.format(chksum))
 
     return (n_data, chksum)
 
